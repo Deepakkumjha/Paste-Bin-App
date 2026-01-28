@@ -9,7 +9,8 @@ from django.views.generic import TemplateView
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
+import uuid
+from django.utils import timezone
 from .models import Paste
 from .serializers import PasteCreateSerializer, PasteResponseSerializer, PasteDetailSerializer
 from .utils import get_current_time
@@ -36,46 +37,38 @@ def health_check(request):
 
 @api_view(['POST'])
 def create_paste(request):
-    """
-    Create a new paste.
-    POST /api/pastes → create paste (content required, optional ttl_seconds, max_views)
-    """
-    serializer = PasteCreateSerializer(data=request.data)
-    
-    if not serializer.is_valid():
-        return Response(
-            {
-                'error': True,
-                'message': get_validation_errors(serializer.errors),
-                'details': serializer.errors
-            },
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    validated_data = serializer.validated_data
-    current_time = get_current_time(request)
-    
-    # Create paste
-    paste = Paste(
-        content=validated_data['content'],
-        created_at=current_time
-    )
-    
-    # Handle TTL
-    ttl_seconds = validated_data.get('ttl_seconds')
+    content = request.data.get("content")
+    ttl_seconds = request.data.get("ttl_seconds")
+    max_views = request.data.get("max_views")
+
+    if not content or not isinstance(content, str):
+        return Response({"error": "content is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if ttl_seconds is not None and int(ttl_seconds) < 1:
+        return Response({"error": "ttl_seconds must be >= 1"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if max_views is not None and int(max_views) < 1:
+        return Response({"error": "max_views must be >= 1"}, status=status.HTTP_400_BAD_REQUEST)
+
+    expires_at = None
     if ttl_seconds:
-        paste.expires_at = current_time + timedelta(seconds=ttl_seconds)
-    
-    # Handle max views
-    max_views = validated_data.get('max_views')
-    if max_views:
-        paste.max_views = max_views
-        paste.remaining_views = max_views
-    
-    paste.save()
-    
-    response_serializer = PasteResponseSerializer(paste)
-    return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        expires_at = timezone.now() + timezone.timedelta(seconds=int(ttl_seconds))
+
+    paste = Paste.objects.create(
+        id=uuid.uuid4(),
+        content=content,
+        expires_at=expires_at,
+        max_views=max_views,
+        remaining_views=max_views,
+    )
+
+    return Response(
+        {
+            "id": str(paste.id),
+            "url": request.build_absolute_uri(f"/p/{paste.id}")
+        },
+        status=status.HTTP_201_CREATED
+    )
 
 
 @api_view(['GET'])
