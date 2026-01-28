@@ -13,7 +13,7 @@ import uuid
 from django.utils import timezone
 from .models import Paste
 from .serializers import PasteCreateSerializer, PasteResponseSerializer, PasteDetailSerializer
-from .utils import get_current_time
+from .utils import get_current_time, get_now
 
 
 @api_view(['GET'])
@@ -73,32 +73,27 @@ def create_paste(request):
 
 @api_view(['GET'])
 def get_paste(request, paste_id):
-    """
-    Get a paste by ID. This counts as a view.
-    GET /api/pastes/<id> → returns content, remaining_views, expires_at
-    """
-    current_time = get_current_time(request)
-    
     try:
-        paste = Paste.objects.get(pk=paste_id)
-    except (Paste.DoesNotExist, ValueError):
-        return Response(
-            {'error': True, 'message': 'Paste not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Check if expired before viewing
-    if paste.is_expired(current_time):
-        return Response(
-            {'error': True, 'message': 'Paste not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Decrement view count (this view counts)
-    paste.decrement_views()
-    
-    serializer = PasteDetailSerializer(paste)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+        paste = Paste.objects.get(id=paste_id)
+    except Paste.DoesNotExist:
+        return Response({"error": "Paste not found"}, status=404)
+
+    now = get_now(request)
+
+    if paste.expires_at and now >= paste.expires_at:
+        return Response({"error": "Paste not found"}, status=404)
+
+    if not paste.decrement_views():
+        return Response({"error": "Paste not found"}, status=404)
+
+    return Response(
+        {
+            "content": paste.content,
+            "remaining_views": paste.remaining_views,
+            "expires_at": paste.expires_at,
+        },
+        status=200
+    )
 
 
 def get_validation_errors(errors):

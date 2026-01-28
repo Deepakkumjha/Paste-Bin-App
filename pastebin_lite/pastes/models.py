@@ -54,18 +54,12 @@ class Paste(models.Model):
            self.save(update_fields=["remaining_views"])
   
    def decrement_views(self):
-       """
-       Safely decrement remaining_views.
-       Returns False if paste is unavailable.
-       """
-       if self.max_views is None:
-           return True  # unlimited views
+        if self.max_views is None:
+            return True
 
+        if self.remaining_views is None or self.remaining_views <= 0:
+            return False
 
-       if self.remaining_views is None or self.remaining_views <= 0:
-           return False
-
-
-       self.remaining_views -= 1
-       self.save(update_fields=["remaining_views"])
-       return True
+        self.remaining_views -= 1
+        self.save(update_fields=["remaining_views"])
+        return True
