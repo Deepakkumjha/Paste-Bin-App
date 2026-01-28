@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Paste</title>
+</head>
+<body>
+<pre>{{ content }}</pre>
+
+{% if expires_at %}
+<p>Expires at: {{ expires_at }}</p>
+{% endif %}
+
+{% if remaining_views is not None %}
+<p>Remaining views: {{ remaining_views }}</p>
+{% endif %}
+</body>
+</html>

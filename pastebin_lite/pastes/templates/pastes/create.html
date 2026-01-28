@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Paste</title>
+</head>
+<body>
+<h2>Create a Paste</h2>
+
+<form method="post">
+    {% csrf_token %}
+    <textarea name="content" rows="10" cols="60" required></textarea><br><br>
+
+    TTL (seconds): <input type="number" name="ttl_seconds" min="1"><br><br>
+    Max Views: <input type="number" name="max_views" min="1"><br><br>
+
+    <button type="submit">Create</button>
+</form>
+
+{% if error %}
+<p style="color:red">{{ error }}</p>
+{% endif %}
+
+{% if paste_url %}
+<p>Paste created:</p>
+<a href="{{ paste_url }}">{{ paste_url }}</a>
+{% endif %}
+</body>
+</html>

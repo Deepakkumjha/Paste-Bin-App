@@ -1,0 +1,1 @@
+web: gunicorn pastebin_lite.wsgi:application
